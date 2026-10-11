@@ -1150,9 +1150,18 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     () => (rows ?? []).filter((r) => r.status !== "deleted" && r.status !== "cancelled"),
     [rows]
   );
+  const announcedTrips = useMemo(
+    () => (content?.trips ?? []).filter((t) => !t.hidden).map((t) => ({
+      id: t.id,
+      ar: t.ar,
+      aliases: t.aliases ?? [],
+      key: `${[t.ar, t.de].filter(Boolean).join(" | ")}${t.date ? ` — ${t.date}` : ""}`,
+    })),
+    [content?.trips]
+  );
   const trips = useMemo(
-    () => [...new Set([...active.map(groupKey), ...(savedRc?.hotels ?? []).map((h) => h.tripKey).filter(Boolean)])],
-    [active, savedRc?.hotels]
+    () => [...new Set([...announcedTrips.map((t) => t.key), ...active.map(groupKey), ...(savedRc?.hotels ?? []).map((h) => h.tripKey).filter(Boolean)])],
+    [active, announcedTrips, savedRc?.hotels]
   );
   const hotelsForTrip = hotels.filter((h) => trip === "all" || h.tripKey === trip);
   const shownHotels = hotelsForTrip.filter((h) => canManage || !h.hidden);
@@ -1178,7 +1187,16 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   // إذا تم إخفاء الكرت وكان المستخدم ليس إدارياً، لا يُعرض
   if (isCardHidden && !(showHidden || canManage)) return null;
 
-  const byTrip = trip === "all" ? active : active.filter((r) => groupKey(r) === trip);
+  const selectedAnnouncedTrip = announcedTrips.find((t) => t.key === trip);
+  const byTrip = trip === "all" ? active : active.filter((r) =>
+    groupKey(r) === trip ||
+    (!!selectedAnnouncedTrip && (
+      r.trip_id === selectedAnnouncedTrip.id ||
+      r.trip === selectedAnnouncedTrip.ar ||
+      r.trip.includes(selectedAnnouncedTrip.ar) ||
+      selectedAnnouncedTrip.aliases.some((a) => r.trip === a || r.trip.includes(a))
+    ))
+  );
   const words = norm(q).split(" ").filter(Boolean);
   const hit = (r: BookingRow) =>
     words.every((w) =>
