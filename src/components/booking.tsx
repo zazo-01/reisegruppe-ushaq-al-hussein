@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LangText, display, toGerman, useLang } from "@/lib/i18n";
 import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
-import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
+import { useShowHidden, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
 import { enablePush } from "@/lib/push";
@@ -1080,16 +1080,16 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
 /** كرت وملف حاسبة وفرز الغرف المستقل مع كامل أزرار التحكيم والإخفاء داخلياً وخارجياً */
 export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const s = useStaffSession();
-  const adminS = useAdminSession();
+  const isAdmin = s?.role === "admin" && s.mode === "admin";
   const [hotelEditMode, setHotelEditMode] = useState(false);
-  const canManage = (adminS?.role === "admin" && adminS.mode === "admin") || (adminS?.role === "haj" && !!content?.cms?.roomCalc?.hajToolsEnabled);
+  const canManage = isAdmin || (s?.role === "haj" && !!content?.cms?.roomCalc?.hajToolsEnabled);
   const list = useServerFn(listBookings);
   const { lang } = useLang();
   const bi = biFor(lang);
   const rtl = lang === "ar" || lang === "both";
 
   const [isOpen, setIsOpen] = useState(false);
-  const saveContent = useSaveContent(adminS?.password ?? "");
+  const saveContent = useSaveContent(s?.password ?? "");
   const savedRc = content?.cms?.roomCalc;
   const isCardHidden = !!savedRc?.hidden;
   const [hajToolsEnabled, setHajToolsEnabled] = useState(!!savedRc?.hajToolsEnabled);
@@ -1121,7 +1121,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     return bi(`${saved?.ar || ar} | ${saved?.de || de}`);
   };
   const persistRc = async (patch: NonNullable<NonNullable<SiteContent["cms"]>["roomCalc"]>) => {
-    if (!content || !adminS) {
+    if (!content || !s) {
       window.alert(bi("لا توجد صلاحية للحفظ | Keine Speicherberechtigung"));
       return false;
     }
@@ -1202,7 +1202,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   if (!s) return null;
 
   // عند إخفاء القسم لا يظهر للحاج حتى لو كانت صلاحيات أدوات الفنادق مفعّلة.
-  if (isCardHidden && !(adminS?.role === "admin" && adminS.mode === "admin")) return null;
+  if (isCardHidden && !(isAdmin)) return null;
 
   const selectedAnnouncedTrip = announcedTrips.find((t) => t.key === trip);
   const byTrip = trip === "all" ? active : active.filter((r) =>
@@ -1285,9 +1285,9 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           </button>
 
           <GearMenu>
-            {adminS?.role === "admin" && adminS.mode === "admin" && <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setDraftLabels(savedRc?.labels ?? {}); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
+            {isAdmin && <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setDraftLabels(savedRc?.labels ?? {}); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
             <IconBtn label={hotelEditMode ? bi("إيقاف التعديل | Bearbeiten beenden") : bi("تفعيل تعديل الفنادق | Hotelbearbeitung aktivieren")} onClick={() => setHotelEditMode((v) => !v)}><Settings className="h-3.5 w-3.5" /></IconBtn>
-            {adminS?.role === "admin" && adminS.mode === "admin" && <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+            {isAdmin && <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
           </GearMenu>
 
           <span className="sr-only">{isCardHidden ? bi("القسم مخفي | Bereich verborgen") : bi("القسم ظاهر | Bereich sichtbar")}</span>
@@ -1348,7 +1348,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                   </div>
                 ))}
               </div>
-              {adminS?.role === "admin" && adminS.mode === "admin" && (
+              {isAdmin && (
                 <label className="flex items-start gap-2 rounded-lg border border-secondary/40 bg-secondary/10 p-3 font-bold">
                   <input type="checkbox" checked={hajToolsEnabled} onChange={(e) => setHajToolsEnabled(e.target.checked)} className="mt-0.5 h-4 w-4 accent-secondary" />
                   <span>{bi("السماح للحاج بإدارة الفنادق والحفظ في هذا القسم | Hajj darf Hotels in diesem Bereich verwalten und speichern")}</span>
@@ -1403,8 +1403,13 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             >
               <option value="all">{bi("كل الرحلات | Alle Reisen")}</option>
               {trips.map((t) => {
-                const announced = announcedTrips.find((a) => a.key === t);
-                return <option key={announced?.id ?? t} value={t}>{announced ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}` : tripLabel(t, bi)}</option>;
+                const announced = announcedTrips.find((a) => a.key === t) ?? announcedTrips.find((a) => {
+                  const dateOnly = t.replace(/\s*[—|]\s*/g, " ").replace(a.date, "").trim();
+                  return !!a.date && t.includes(a.date) && !dateOnly;
+                });
+                const fallback = tripLabel(t, bi);
+                const label = announced ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}` : fallback;
+                return <option key={announced?.id ?? t} value={t}>{label}</option>;
               })}
             </select>
           </label>
