@@ -4,7 +4,7 @@ import { Baby, Bell, Calculator, Camera, CheckCircle2, ChevronLeft, ChevronRight
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LangText, display, toGerman, useLang } from "@/lib/i18n";
-import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, SectionAdminBar, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
 import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
