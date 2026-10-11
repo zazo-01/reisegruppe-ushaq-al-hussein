@@ -1155,13 +1155,12 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     [rows]
   );
   const announcedTrips = useMemo(
-    () => (content?.trips ?? []).filter((t) => !t.hidden).map((t) => ({
-      id: t.id,
-      ar: t.ar,
-      aliases: t.aliases ?? [],
+    () => (content?.trips ?? []).filter((t) => !t.hidden && t.visible !== false).map((t) => ({
+      id: t.id, ar: t.ar, de: t.de, date: t.date, aliases: t.aliases ?? [],
       key: `${[t.ar, t.de].filter(Boolean).join(" | ")}${t.date ? ` — ${t.date}` : ""}`,
+      label: lang === "de" ? t.de : lang === "both" ? `${t.ar} | ${t.de}` : t.ar,
     })),
-    [content?.trips]
+    [content?.trips, lang]
   );
   const trips = useMemo(
     () => [...new Set([...announcedTrips.map((t) => t.key), ...active.map(groupKey), ...(savedRc?.hotels ?? []).map((h) => h.tripKey).filter(Boolean)])],
@@ -1188,8 +1187,8 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
 
   if (!s) return null;
 
-  // إذا تم إخفاء الكرت وكان المستخدم ليس إدارياً، لا يُعرض
-  if (isCardHidden && !(showHidden || canManage)) return null;
+  // عند إخفاء القسم لا يظهر للحاج حتى لو كانت صلاحيات أدوات الفنادق مفعّلة.
+  if (isCardHidden && !(showHidden || (adminS?.role === "admin" && adminS.mode === "admin"))) return null;
 
   const selectedAnnouncedTrip = announcedTrips.find((t) => t.key === trip);
   const byTrip = trip === "all" ? active : active.filter((r) =>
@@ -1271,15 +1270,11 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
 
-          {/* زر قلم تعديل عنوان ووصف الكرت الخارجي */}
-          <button
-            type="button"
-            onClick={() => { setCustomTitle(savedTitle); setEditTitleOpen(true); }}
-            title={bi("تعديل العنوان | Titel bearbeiten")}
-            className="grid h-7 w-7 place-items-center rounded-full border border-secondary/50 bg-secondary/10 text-secondary hover:bg-secondary/20"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
+          <GearMenu>
+            <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+            <IconBtn label={hotelEditMode ? bi("إيقاف التعديل | Bearbeiten beenden") : bi("تفعيل تعديل الفنادق | Hotelbearbeitung aktivieren")} onClick={() => setHotelEditMode((v) => !v)}><Settings className="h-3.5 w-3.5" /></IconBtn>
+            <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
+          </GearMenu>
 
           {/* زر عين الإخفاء والإظهار الخارجي */}
           <button
@@ -1391,9 +1386,10 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               className={inputCls + " mt-1"}
             >
               <option value="all">{bi("كل الرحلات | Alle Reisen")}</option>
-              {trips.map((t) => (
-                <option key={t} value={t}>{tripLabel(t, bi)}</option>
-              ))}
+              {trips.map((t) => {
+                const announced = announcedTrips.find((a) => a.key === t);
+                return <option key={announced?.id ?? t} value={t}>{announced ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}` : tripLabel(t, bi)}</option>;
+              })}
             </select>
           </label>
 
