@@ -1403,10 +1403,9 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             >
               <option value="all">{bi("كل الرحلات | Alle Reisen")}</option>
               {trips.map((t) => {
-                const announced = announcedTrips.find((a) => a.key === t) ?? announcedTrips.find((a) => {
-                  const dateOnly = t.replace(/\s*[—|]\s*/g, " ").replace(a.date, "").trim();
-                  return !!a.date && t.includes(a.date) && !dateOnly;
-                });
+                const announced = announcedTrips.find((a) => a.key === t)
+                  ?? announcedTrips.find((a) => !!a.date && t.trim() === a.date.trim())
+                  ?? announcedTrips.find((a) => !!a.date && t.includes(a.date) && !t.replace(a.date, "").replace(/[|—–-]/g, "").trim());
                 const fallback = tripLabel(t, bi);
                 const label = announced ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}` : fallback;
                 return <option key={announced?.id ?? t} value={t}>{label}</option>;
