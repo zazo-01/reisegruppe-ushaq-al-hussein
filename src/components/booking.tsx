@@ -1081,7 +1081,6 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
 export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const s = useStaffSession();
   const adminS = useAdminSession();
-  const showHidden = useShowHidden();
   const [hotelEditMode, setHotelEditMode] = useState(false);
   const canManage = (adminS?.role === "admin" && adminS.mode === "admin") || (adminS?.role === "haj" && !!content?.cms?.roomCalc?.hajToolsEnabled);
   const list = useServerFn(listBookings);
