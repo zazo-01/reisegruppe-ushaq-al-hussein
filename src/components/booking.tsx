@@ -4,7 +4,7 @@ import { Baby, Bell, Calculator, Camera, CheckCircle2, ChevronLeft, ChevronRight
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LangText, display, toGerman, useLang } from "@/lib/i18n";
-import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, SectionAdminBar, toggleSectionEditMode, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
+import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, SectionAdminBar, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
@@ -1082,7 +1082,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const s = useStaffSession();
   const adminS = useAdminSession();
   const showHidden = useShowHidden();
-  const isEditing = useSectionEditMode();
+  const hotelEditMode = useSectionEditMode();
   const canManage = (adminS?.role === "admin" && adminS.mode === "admin") || (adminS?.role === "haj" && !!content?.cms?.roomCalc?.hajToolsEnabled);
   const list = useServerFn(listBookings);
   const { lang } = useLang();
@@ -1360,7 +1360,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               <span className="text-xs font-bold text-primary flex items-center gap-1.5">
                 <span>⚙️</span> {bi("لوحة إدارة الغرف والفنادق | Verwaltung")}
               </span>
-              <span className="text-[11px] text-muted-foreground">{isEditing ? bi("وضع التعديل مفعّل | Bearbeitung aktiv") : bi("وضع العرض | Ansichtsmodus")}</span>
+              <span className="text-[11px] text-muted-foreground">{hotelEditMode ? bi("وضع التعديل مفعّل | Bearbeitung aktiv") : bi("وضع العرض | Ansichtsmodus")}</span>
             </div>}
 
             <div className="flex items-center gap-1.5">
@@ -1405,10 +1405,10 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             </div>
             {trip === "all" && <p className="rounded-lg border border-secondary/40 bg-secondary/10 p-2 text-[11px]">{bi("لعرض فنادق رحلة معينة أو إضافة فندق، اختَر رحلة من القائمة أعلاه. | Bitte oben eine bestimmte Reise auswählen.")}</p>}
             {canManage && <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2">
-              <button type="button" onClick={() => toggleSectionEditMode()} className={"rounded-lg border px-3 py-2 text-xs font-bold " + (isEditing ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-background text-foreground")}>{isEditing ? bi("إيقاف وضع التعديل | Bearbeiten beenden") : bi("تفعيل وضع التعديل | Bearbeiten aktivieren")}</button>
-              <button type="button" onClick={addHotel} disabled={!isEditing} className="rounded-lg border border-secondary bg-background px-3 py-2 text-xs font-bold disabled:opacity-40">{bi("إضافة فندق | Hotel hinzufügen")}</button>
-              <button type="button" onClick={() => void saveHotels()} disabled={!isEditing || !hotelsDirty} className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-40">{bi("حفظ البيانات | Daten speichern")}</button>
-              <button type="button" onClick={() => { setHotels(savedRc?.hotels ?? []); setHotelsDirty(false); }} disabled={!isEditing || !hotelsDirty} className="rounded-lg border border-border px-3 py-2 text-xs disabled:opacity-40">{bi("إلغاء التغييرات | Verwerfen")}</button>
+              <button type="button" onClick={() => setHotelEditMode((v) => !v)} className={"rounded-lg border px-3 py-2 text-xs font-bold " + (hotelEditMode ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-background text-foreground")}>{hotelEditMode ? bi("إيقاف وضع التعديل | Bearbeiten beenden") : bi("تفعيل وضع التعديل | Bearbeiten aktivieren")}</button>
+              <button type="button" onClick={addHotel} disabled={!hotelEditMode} className="rounded-lg border border-secondary bg-background px-3 py-2 text-xs font-bold disabled:opacity-40">{bi("إضافة فندق | Hotel hinzufügen")}</button>
+              <button type="button" onClick={() => void saveHotels()} disabled={!hotelEditMode || !hotelsDirty} className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-40">{bi("حفظ البيانات | Daten speichern")}</button>
+              <button type="button" onClick={() => { setHotels(savedRc?.hotels ?? []); setHotelsDirty(false); }} disabled={!hotelEditMode || !hotelsDirty} className="rounded-lg border border-border px-3 py-2 text-xs disabled:opacity-40">{bi("إلغاء التغييرات | Verwerfen")}</button>
               {hotelsDirty && <span className="self-center text-[11px] font-bold text-secondary">{bi("تغييرات غير محفوظة | Ungespeichert")}</span>}
             </div>}
             {shownHotels.length === 0 ? (
@@ -1427,13 +1427,13 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                     <div className="min-w-0 flex-1 space-y-2">
                       {trip === "all" && <p className="text-[10px] font-bold text-secondary">{tripLabel(h.tripKey, bi)}</p>}
                       <label className="block text-[11px] font-bold text-muted-foreground">{bi("المدينة | Stadt")}
-                        <input value={h.city} disabled={!canManage || !isEditing} onChange={(e) => updateHotel(h.id, { city: e.target.value })} placeholder={bi("مثلاً كربلاء، النجف، مكة... | z. B. Kerbela, Nadschaf, Mekka")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
+                        <input value={h.city} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { city: e.target.value })} placeholder={bi("مثلاً كربلاء، النجف، مكة... | z. B. Kerbela, Nadschaf, Mekka")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
                       </label>
                       <label className="block text-[11px] font-bold text-muted-foreground">{bi("اسم الفندق | Hotelname")}
-                        <input value={h.name} disabled={!canManage || !isEditing} onChange={(e) => updateHotel(h.id, { name: e.target.value })} placeholder={bi("اكتب اسم الفندق هنا | Hotelnamen eingeben")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
+                        <input value={h.name} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { name: e.target.value })} placeholder={bi("اكتب اسم الفندق هنا | Hotelnamen eingeben")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
                       </label>
                     </div>
-                    {canManage && isEditing && <div className="flex shrink-0 gap-1">
+                    {canManage && hotelEditMode && <div className="flex shrink-0 gap-1">
                       <button type="button" onClick={() => updateHotel(h.id, { hidden: !h.hidden })} title={h.hidden ? bi("إظهار الفندق | Hotel anzeigen") : bi("إخفاء الفندق | Hotel ausblenden")} className="grid h-8 w-8 place-items-center rounded-lg border border-border text-primary">{h.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
                       <button type="button" onClick={() => { if (window.confirm(bi("هل تريد حذف هذا الفندق؟ | Dieses Hotel löschen?"))) { setHotels((all) => all.filter((x) => x.id !== h.id)); setHotelsDirty(true); } }} title={bi("حذف الفندق | Hotel löschen")} className="grid h-8 w-8 place-items-center rounded-lg border border-border text-destructive"><Trash2 className="h-4 w-4" /></button>
                     </div>}
@@ -1443,7 +1443,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                       <label key={room.key} className="rounded-lg border border-border bg-muted/30 p-2 text-center">
                         <span className="block text-[11px] font-bold">{bi(room.ar + " | " + room.de)}</span>
                         <span className="mt-0.5 block text-[10px] text-muted-foreground">{bi(room.factor + " زائر/الغرفة | " + room.factor + " Personen/Zimmer")}</span>
-                        <input type="number" min="0" step="1" value={h[room.key] || ""} disabled={!canManage || !isEditing} onChange={(e) => updateHotel(h.id, { [room.key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} placeholder="0" className="mt-1 w-full rounded-md border border-input bg-background py-2 text-center text-base font-bold text-primary disabled:opacity-75" />
+                        <input type="number" min="0" step="1" value={h[room.key] || ""} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { [room.key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} placeholder="0" className="mt-1 w-full rounded-md border border-input bg-background py-2 text-center text-base font-bold text-primary disabled:opacity-75" />
                       </label>
                     ))}
                   </div>
