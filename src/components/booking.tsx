@@ -1118,6 +1118,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const setIsCardHidden = (h: boolean) => { void persistRc({ hidden: h }); };
 
   const [rows, setRows] = useState<BookingRow[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [trip, setTrip] = useState<string>("all");
   const [q, setQ] = useState("");
 
@@ -1131,8 +1132,14 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
 
   const load = async () => {
     if (!s) return;
-    const r = await list({ data: { password: s.password } });
-    setRows(r.rows);
+    setLoadError(null);
+    try {
+      const r = await list({ data: { password: s.password } });
+      setRows(r.rows);
+    } catch (e) {
+      setRows([]);
+      setLoadError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   useEffect(() => {
@@ -1432,6 +1439,12 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
 
             {rows === null ? (
               <Loader2 className="mx-auto mt-3 animate-spin" />
+            ) : loadError ? (
+              <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-center text-xs">
+                <p className="font-bold">{bi("تعذّر تحميل الحجوزات | Buchungen konnten nicht geladen werden")}</p>
+                <p className="mt-1 break-words text-muted-foreground">{loadError}</p>
+                <button type="button" onClick={() => void load()} className="mt-2 rounded-lg border border-border bg-card px-3 py-2 font-bold">{bi("إعادة المحاولة | Erneut versuchen")}</button>
+              </div>
             ) : words.length === 0 ? (
               <p className="mt-2 text-center text-xs text-muted-foreground">
                 {bi("💡 اكتب اسم الزائر للتحقق من بياناته | Namen eingeben zum Prüfen")}
