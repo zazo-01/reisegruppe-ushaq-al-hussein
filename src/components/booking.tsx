@@ -1271,9 +1271,9 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           </button>
 
           <GearMenu>
-            <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+            {adminS?.role === "admin" && adminS.mode === "admin" && <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
             <IconBtn label={hotelEditMode ? bi("إيقاف التعديل | Bearbeiten beenden") : bi("تفعيل تعديل الفنادق | Hotelbearbeitung aktivieren")} onClick={() => setHotelEditMode((v) => !v)}><Settings className="h-3.5 w-3.5" /></IconBtn>
-            <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
+            {adminS?.role === "admin" && adminS.mode === "admin" && <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
           </GearMenu>
 
           <span className="sr-only">{isCardHidden ? bi("القسم مخفي | Bereich verborgen") : bi("القسم ظاهر | Bereich sichtbar")}</span>
