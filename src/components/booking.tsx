@@ -1169,10 +1169,12 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     [rows]
   );
   const announcedTrips = useMemo(
-    () => (content?.trips ?? []).filter((t) => !t.hidden && t.visible !== false).map((t) => ({
+    // Keep hidden/older announced trips available for internal accounting labels too.
+    // A booking may still refer to a trip that is no longer publicly visible.
+    () => (content?.trips ?? []).map((t) => ({
       id: t.id, ar: t.ar, de: t.de, date: t.date, aliases: t.aliases ?? [],
       key: `${[t.ar, t.de].filter(Boolean).join(" | ")}${t.date ? ` — ${t.date}` : ""}`,
-      label: lang === "de" ? t.de : lang === "both" ? `${t.ar} | ${t.de}` : t.ar,
+      label: lang === "de" ? (t.de || t.ar) : lang === "both" ? `${t.ar || t.de}${t.ar && t.de ? " | " : ""}${t.de || ""}` : (t.ar || t.de),
     })),
     [content?.trips, lang]
   );
@@ -1284,6 +1286,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
 
+          <span className="hidden text-[10px] font-bold text-secondary sm:inline">{bi("تحكّم الإدارة | Verwaltung")}</span>
           <GearMenu>
             {isAdmin && <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setDraftLabels(savedRc?.labels ?? {}); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
             <IconBtn label={hotelEditMode ? bi("إيقاف التعديل | Bearbeiten beenden") : bi("تفعيل تعديل الفنادق | Hotelbearbeitung aktivieren")} onClick={() => setHotelEditMode((v) => !v)}><Settings className="h-3.5 w-3.5" /></IconBtn>
@@ -1403,9 +1406,18 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             >
               <option value="all">{bi("كل الرحلات | Alle Reisen")}</option>
               {trips.map((t) => {
-                const announced = announcedTrips.find((a) => a.key === t)
-                  ?? announcedTrips.find((a) => !!a.date && t.trim() === a.date.trim())
-                  ?? announcedTrips.find((a) => !!a.date && t.includes(a.date) && !t.replace(a.date, "").replace(/[|—–-]/g, "").trim());
+                const normalizedValue = norm(t);
+                const announced = announcedTrips.find((a) => norm(a.key) === normalizedValue)
+                  ?? announcedTrips.find((a) => !!a.date && normalizedValue === norm(a.date))
+                  ?? announcedTrips.find((a) => {
+                    const names = [a.ar, a.de, ...a.aliases].map(norm).filter(Boolean);
+                    const normalizedDate = norm(a.date);
+                    if (normalizedDate && normalizedValue.includes(normalizedDate)) {
+                      const withoutDate = normalizedValue.replace(normalizedDate, "").replace(/[|—–-]/g, "").trim();
+                      if (!withoutDate || names.some((name) => withoutDate === name)) return true;
+                    }
+                    return names.some((name) => normalizedValue === name || normalizedValue.startsWith(`${name} — `));
+                  });
                 const fallback = tripLabel(t, bi);
                 const label = announced ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}` : fallback;
                 return <option key={announced?.id ?? t} value={t}>{label}</option>;
