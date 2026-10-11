@@ -11,7 +11,7 @@ import { saveOrQueue } from "@/lib/offline";
 import { enablePush } from "@/lib/push";
 import { addManualBooking, bookingFileUrl, listBookings, scanPassport, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
 import { buildXlsx, type XSheet } from "@/lib/xlsx";
-import type { SiteContent } from "@/lib/site-content";
+import type { RoomCalcHotel, SiteContent } from "@/lib/site-content";
 function Pair({ ar, de }: { ar: string; de: string }) { return <LangText ar={ar} de={de} />; }
 type Cat = "adult" | "child" | "infant";
 type FileData = { name: string; type: string; data: string };
@@ -1095,19 +1095,24 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const isCardHidden = !!savedRc?.hidden;
   const [editTitleOpen, setEditTitleOpen] = useState(false);
   const savedTitle = {
-    ar: savedRc?.ar || "حاسبة وفرز الغرف",
-    de: savedRc?.de || "Zimmer-Rechner",
-    subAr: savedRc?.subAr || "كشف الفنادق وحساب الغرف الميداني",
-    subDe: savedRc?.subDe || "Zimmer & Abrechnung",
+    ar: savedRc?.ar || "محاسبة الفنادق الفعلية للحاج",
+    de: savedRc?.de || "Hotelabrechnung für Hajj Yasser",
+    subAr: savedRc?.subAr || "توزيع الغرف وفرز الزوار وحساب السعة",
+    subDe: savedRc?.subDe || "Zimmer verteilen, Gäste filtern und Kapazität berechnen",
   };
   const [draftTitle, setCustomTitle] = useState(savedTitle);
   const customTitle = editTitleOpen ? draftTitle : savedTitle;
   const persistRc = async (patch: NonNullable<NonNullable<SiteContent["cms"]>["roomCalc"]>) => {
-    if (!content || !adminS) return;
+    if (!content || !adminS) {
+      window.alert(bi("لا توجد صلاحية للحفظ | Keine Speicherberechtigung"));
+      return false;
+    }
     try {
       await saveContent({ ...content, cms: { ...(content.cms ?? {}), roomCalc: { ...(content.cms?.roomCalc ?? {}), ...patch } } });
+      return true;
     } catch (e) {
       window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${e instanceof Error ? e.message : String(e)}`);
+      return false;
     }
   };
   const setIsCardHidden = (h: boolean) => { void persistRc({ hidden: h }); };
@@ -1116,12 +1121,13 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const [trip, setTrip] = useState<string>("all");
   const [q, setQ] = useState("");
 
-  // بيانات الفنادق الميدانية للمحاسبة مع أزرار التحكم
-  const [hotels, setHotels] = useState<Array<{ id: string; city: string; name: string; d: number; t: number; q: number; s: number; hidden?: boolean }>>([
-    { id: "h1", city: "كربلاء", name: "", d: 0, t: 0, q: 0, s: 0, hidden: false }
-  ]);
-
-  const [editingHotel, setEditingHotel] = useState<{ id: string; city: string; name: string } | null>(null);
+  // بيانات الفنادق محفوظة في محتوى الحملة ومفصولة حسب الرحلة.
+  const [hotels, setHotels] = useState<RoomCalcHotel[]>(savedRc?.hotels ?? []);
+  const [hotelsDirty, setHotelsDirty] = useState(false);
+  useEffect(() => {
+    setHotels(savedRc?.hotels ?? []);
+    setHotelsDirty(false);
+  }, [savedRc?.hotels]);
 
   const load = async () => {
     if (!s) return;
