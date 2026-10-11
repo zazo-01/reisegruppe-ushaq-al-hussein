@@ -1203,7 +1203,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   if (!s) return null;
 
   // عند إخفاء القسم لا يظهر للحاج حتى لو كانت صلاحيات أدوات الفنادق مفعّلة.
-  if (isCardHidden && !(showHidden || (adminS?.role === "admin" && adminS.mode === "admin"))) return null;
+  if (isCardHidden && !(adminS?.role === "admin" && adminS.mode === "admin")) return null;
 
   const selectedAnnouncedTrip = announcedTrips.find((t) => t.key === trip);
   const byTrip = trip === "all" ? active : active.filter((r) =>
