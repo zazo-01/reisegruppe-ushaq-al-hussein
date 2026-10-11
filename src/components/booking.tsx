@@ -1143,7 +1143,28 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     () => (rows ?? []).filter((r) => r.status !== "deleted" && r.status !== "cancelled"),
     [rows]
   );
-  const trips = useMemo(() => [...new Set(active.map(groupKey))], [active]);
+  const trips = useMemo(
+    () => [...new Set([...active.map(groupKey), ...(savedRc?.hotels ?? []).map((h) => h.tripKey).filter(Boolean)])],
+    [active, savedRc?.hotels]
+  );
+  const hotelsForTrip = hotels.filter((h) => trip === "all" || h.tripKey === trip);
+  const shownHotels = hotelsForTrip.filter((h) => canManage || !h.hidden);
+  const updateHotel = (id: string, patch: Partial<RoomCalcHotel>) => {
+    setHotels((all) => all.map((h) => h.id === id ? { ...h, ...patch } : h));
+    setHotelsDirty(true);
+  };
+  const addHotel = () => {
+    if (trip === "all") {
+      window.alert(bi("اختر رحلة محددة أولاً، ثم أضف الفندق إليها | Bitte zuerst eine bestimmte Reise auswählen."));
+      return;
+    }
+    setHotels((all) => [...all, { id: "hotel_" + Date.now(), tripKey: trip, city: "", name: "", d: 0, t: 0, q: 0, s: 0, hidden: false }]);
+    setHotelsDirty(true);
+  };
+  const saveHotels = async () => {
+    const ok = await persistRc({ hotels });
+    if (ok) setHotelsDirty(false);
+  };
 
   if (!s) return null;
 
@@ -1168,10 +1189,10 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     let report = `🏨 ${bi(`${customTitle.ar} | ${customTitle.de}`)}\n`;
     report += `📌 ${tripLabel(trip, bi)} — (${pax} ${bi("زائر | Pax")})\n`;
     report += `─────────────────────\n`;
-    hotels.filter((h) => !h.hidden).forEach((h, idx) => {
+    hotelsForTrip.filter((h) => !h.hidden).forEach((h, idx) => {
       const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s * 1;
       const totalRms = h.d + h.t + h.q + h.s;
-      report += `📍 [${idx + 1}] ${h.city || "—"} / ${h.name || bi("فندق | Hotel")}:\n`;
+      report += `📍 [${idx + 1}] ${tripLabel(h.tripKey, bi)} — ${h.city || "—"} / ${h.name || bi("فندق | Hotel")}:\n`;
       if (h.d > 0) report += `  • ثنائية (×2): ${h.d}\n`;
       if (h.t > 0) report += `  • ثلاثية (×3): ${h.t}\n`;
       if (h.q > 0) report += `  • رباعية (×4): ${h.q}\n`;
@@ -1351,141 +1372,59 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             </select>
           </label>
 
-          {/* حاسبة الفنادق الميدانية المرنة مع أزرار التحكيم لكل فندق */}
-          <div className="rounded-lg border-2 border-secondary/50 bg-secondary/10 p-2.5 text-xs space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-primary">🏨 {bi("محاسبة الفنادق الفعلية (للحاج) | Hotel-Abrechnung")}</span>
-              {canManage && <button
-                type="button"
-                onClick={() =>
-                  setHotels((prev) => [
-                    ...prev,
-                    { id: `h_${Date.now()}`, city: "", name: "", d: 0, t: 0, q: 0, s: 0, hidden: false },
-                  ])
-                }
-                className="rounded border border-secondary bg-card px-2 py-0.5 text-[11px] font-bold text-primary hover:bg-accent flex items-center gap-1 shadow-sm"
-              >
-                <Plus className="h-3 w-3" />
-                <span>{bi("إضافة فندق | Hotel hinzufügen")}</span>
-              </button>}
+          {/* سجل الفنادق المنظم حسب الرحلة */}
+          <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+            <div>
+              <h4 className="font-bold text-primary">{bi("محاسبة الفنادق الفعلية للحاج | Hotelabrechnung für Hajj Yasser")}</h4>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{bi("اختَر رحلة محددة من القائمة أعلاه، ثم أضف الفنادق وأدخل أعداد الغرف واحفظ البيانات. | Wähle oben eine bestimmte Reise, trage Hotels und Zimmerzahlen ein und speichere.")}</p>
             </div>
-
-            {hotels.map((h, i) => {
-              const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s * 1;
+            {trip === "all" && <p className="rounded-lg border border-secondary/40 bg-secondary/10 p-2 text-[11px]">{bi("لعرض فنادق رحلة معينة أو إضافة فندق، اختَر رحلة من القائمة أعلاه. | Bitte oben eine bestimmte Reise auswählen.")}</p>}
+            {canManage && <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2">
+              <button type="button" onClick={() => toggleSectionEditMode()} className={"rounded-lg border px-3 py-2 text-xs font-bold " + (isEditing ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-background text-foreground")}>{isEditing ? bi("إيقاف وضع التعديل | Bearbeiten beenden") : bi("تفعيل وضع التعديل | Bearbeiten aktivieren")}</button>
+              <button type="button" onClick={addHotel} disabled={!isEditing} className="rounded-lg border border-secondary bg-background px-3 py-2 text-xs font-bold disabled:opacity-40">{bi("إضافة فندق | Hotel hinzufügen")}</button>
+              <button type="button" onClick={() => void saveHotels()} disabled={!isEditing || !hotelsDirty} className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-40">{bi("حفظ البيانات | Daten speichern")}</button>
+              <button type="button" onClick={() => { setHotels(savedRc?.hotels ?? []); setHotelsDirty(false); }} disabled={!isEditing || !hotelsDirty} className="rounded-lg border border-border px-3 py-2 text-xs disabled:opacity-40">{bi("إلغاء التغييرات | Verwerfen")}</button>
+              {hotelsDirty && <span className="self-center text-[11px] font-bold text-secondary">{bi("تغييرات غير محفوظة | Ungespeichert")}</span>}
+            </div>}
+            {shownHotels.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-card px-3 py-6 text-center">
+                <Calculator className="mx-auto mb-2 h-6 w-6 text-secondary" />
+                <p className="text-sm font-bold">{bi("لا توجد فنادق محفوظة لهذه الرحلة بعد | Noch keine Hotels für diese Reise")}</p>
+                {canManage && <p className="mt-1 text-[11px] text-muted-foreground">{bi("فعّل وضع التعديل، أضف فندقاً، ثم احفظ البيانات. | Bearbeitungsmodus aktivieren, Hotel hinzufügen und speichern.")}</p>}
+              </div>
+            ) : shownHotels.map((h, i) => {
+              const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s;
               const totalRms = h.d + h.t + h.q + h.s;
               return (
-                <div key={h.id} className={`rounded-md border border-border bg-card p-2 space-y-1.5 transition-opacity ${h.hidden ? "opacity-50 border-dashed" : ""}`}>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      value={h.city}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, city: val } : x)));
-                      }}
-                      placeholder={bi("المدينة (مثلاً كربلاء، مكة...) | Stadt")}
-                      className="w-1/3 rounded border border-border px-2 py-1 text-xs"
-                    />
-                    <input
-                      value={h.name}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, name: val } : x)));
-                      }}
-                      placeholder={bi("اسم الفندق | Hotelname")}
-                      className="flex-1 rounded border border-border px-2 py-1 text-xs"
-                    />
-
-                    {/* أزرار التحكيم الخاصة بكل فندق (تعديل ✏️، إخفاء 👁️، حذف 🗑️) */}
-                    {canManage && <div className="flex items-center gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, hidden: !x.hidden } : x)))
-                        }
-                        title={h.hidden ? bi("إظهار الفندق | Anzeigen") : bi("إخفاء الفندق | Verbergen")}
-                        className="p-1 text-muted-foreground hover:text-primary"
-                      >
-                        {h.hidden ? <Eye className="h-3.5 w-3.5 text-primary" /> : <EyeOff className="h-3.5 w-3.5" />}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm(bi("هل أنت متأكد من حذف هذا الفندق؟ | Hotel löschen?"))) {
-                            setHotels((all) => all.filter((_, idx) => idx !== i));
-                          }
-                        }}
-                        className="p-1 text-destructive hover:opacity-80"
-                        title={bi("حذف الفندق | Löschen")}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                <div key={h.id} className={"space-y-3 rounded-xl border bg-card p-3 shadow-sm " + (h.hidden ? "border-dashed opacity-60" : "border-border")}>
+                  <div className="flex items-start gap-2">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-secondary/15 font-bold text-primary">{i + 1}</span>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      {trip === "all" && <p className="text-[10px] font-bold text-secondary">{tripLabel(h.tripKey, bi)}</p>}
+                      <label className="block text-[11px] font-bold text-muted-foreground">{bi("المدينة | Stadt")}
+                        <input value={h.city} disabled={!canManage || !isEditing} onChange={(e) => updateHotel(h.id, { city: e.target.value })} placeholder={bi("مثلاً كربلاء، النجف، مكة... | z. B. Kerbela, Nadschaf, Mekka")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
+                      </label>
+                      <label className="block text-[11px] font-bold text-muted-foreground">{bi("اسم الفندق | Hotelname")}
+                        <input value={h.name} disabled={!canManage || !isEditing} onChange={(e) => updateHotel(h.id, { name: e.target.value })} placeholder={bi("اكتب اسم الفندق هنا | Hotelnamen eingeben")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
+                      </label>
+                    </div>
+                    {canManage && isEditing && <div className="flex shrink-0 gap-1">
+                      <button type="button" onClick={() => updateHotel(h.id, { hidden: !h.hidden })} title={h.hidden ? bi("إظهار الفندق | Hotel anzeigen") : bi("إخفاء الفندق | Hotel ausblenden")} className="grid h-8 w-8 place-items-center rounded-lg border border-border text-primary">{h.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
+                      <button type="button" onClick={() => { if (window.confirm(bi("هل تريد حذف هذا الفندق؟ | Dieses Hotel löschen?"))) { setHotels((all) => all.filter((x) => x.id !== h.id)); setHotelsDirty(true); } }} title={bi("حذف الفندق | Hotel löschen")} className="grid h-8 w-8 place-items-center rounded-lg border border-border text-destructive"><Trash2 className="h-4 w-4" /></button>
                     </div>}
                   </div>
-
-                  {/* إدخال أعداد الغرف */}
-                  <div className="grid grid-cols-4 gap-1 text-center font-bold">
-                    <div className="rounded border border-border/80 bg-accent/30 p-1">
-                      <span className="block text-[10px] text-muted-foreground">{bi("ثنائية ×2 | 2er")}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={h.d || ""}
-                        onChange={(e) => {
-                          const n = parseInt(e.target.value) || 0;
-                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, d: n } : x)));
-                        }}
-                        className="w-full text-center font-bold text-sm bg-transparent"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="rounded border border-border/80 bg-accent/30 p-1">
-                      <span className="block text-[10px] text-muted-foreground">{bi("ثلاثية ×3 | 3er")}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={h.t || ""}
-                        onChange={(e) => {
-                          const n = parseInt(e.target.value) || 0;
-                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, t: n } : x)));
-                        }}
-                        className="w-full text-center font-bold text-sm bg-transparent"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="rounded border border-border/80 bg-accent/30 p-1">
-                      <span className="block text-[10px] text-muted-foreground">{bi("رباعية ×4 | 4er")}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={h.q || ""}
-                        onChange={(e) => {
-                          const n = parseInt(e.target.value) || 0;
-                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, q: n } : x)));
-                        }}
-                        className="w-full text-center font-bold text-sm bg-transparent"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="rounded border border-border/80 bg-accent/30 p-1">
-                      <span className="block text-[10px] text-muted-foreground">{bi("مفردة ×1 | 1er")}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={h.s || ""}
-                        onChange={(e) => {
-                          const n = parseInt(e.target.value) || 0;
-                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, s: n } : x)));
-                        }}
-                        className="w-full text-center font-bold text-sm bg-transparent"
-                        placeholder="0"
-                      />
-                    </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {([{key:"d",ar:"ثنائية ×2",de:"Doppel ×2",factor:2},{key:"t",ar:"ثلاثية ×3",de:"Dreibett ×3",factor:3},{key:"q",ar:"رباعية ×4",de:"Vierbett ×4",factor:4},{key:"s",ar:"مفردة ×1",de:"Einzel ×1",factor:1}] as const).map((room) => (
+                      <label key={room.key} className="rounded-lg border border-border bg-muted/30 p-2 text-center">
+                        <span className="block text-[11px] font-bold">{bi(room.ar + " | " + room.de)}</span>
+                        <span className="mt-0.5 block text-[10px] text-muted-foreground">{bi(room.factor + " زائر/الغرفة | " + room.factor + " Personen/Zimmer")}</span>
+                        <input type="number" min="0" step="1" value={h[room.key] || ""} disabled={!canManage || !isEditing} onChange={(e) => updateHotel(h.id, { [room.key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} placeholder="0" className="mt-1 w-full rounded-md border border-input bg-background py-2 text-center text-base font-bold text-primary disabled:opacity-75" />
+                      </label>
+                    ))}
                   </div>
-
-                  <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-0.5">
-                    <span>{bi(`المجموع: ${totalRms} غرفة | ${totalRms} Zimmer`)}</span>
-                    <span className="font-bold text-primary">{bi(`الاستيعاب: ${cap} سرير / زائر`)}</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-primary/5 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{bi("مجموع الغرف | Zimmer gesamt")}</span><strong className="text-lg text-primary">{totalRms}</strong></div>
+                    <div className="rounded-lg bg-secondary/15 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{bi("السعة الإجمالية | Gesamtkapazität")}</span><strong className="text-lg text-primary">{cap}</strong><span className="ms-1 text-[10px]">{bi("زائر | Personen")}</span></div>
                   </div>
                 </div>
               );
