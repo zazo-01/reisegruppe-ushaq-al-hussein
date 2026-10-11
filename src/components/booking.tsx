@@ -1276,15 +1276,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
           </GearMenu>
 
-          {/* زر عين الإخفاء والإظهار الخارجي */}
-          <button
-            type="button"
-            onClick={() => setIsCardHidden(!isCardHidden)}
-            title={isCardHidden ? bi("إظهار | Anzeigen") : bi("إخفاء | Verbergen")}
-            className="grid h-7 w-7 place-items-center rounded-full border border-border text-muted-foreground hover:text-primary"
-          >
-            {isCardHidden ? <Eye className="h-3.5 w-3.5 text-primary font-bold" /> : <EyeOff className="h-3.5 w-3.5" />}
-          </button>
+          <span className="sr-only">{isCardHidden ? bi("القسم مخفي | Bereich verborgen") : bi("القسم ظاهر | Bereich sichtbar")}</span>
         </div>}
       </div>
 
