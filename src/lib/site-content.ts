@@ -76,7 +76,7 @@ export type CmsSection = { id: string; ar: string; de: string; icon: string; ite
 /** Free app structure: tile order, hidden tiles, which folder holds which tile, admin-created sections and app design. */
 export type BannerConfig = { image?: string; opacity?: number; blur?: number; titleAr?: string; titleDe?: string; lineAr?: string; lineDe?: string; textAr?: string; textDe?: string };
 export type RoomCalcHotel = { id: string; tripKey: string; city: string; name: string; d: number; t: number; q: number; s: number; hidden?: boolean };
-export type CmsConfig = { order?: string[]; hiddenTiles?: string[]; parents?: Record<string, string>; sections?: CmsSection[]; hajToolsEnabled?: boolean; columns?: 2 | 3; theme?: string; banner?: BannerConfig; roomCalc?: { ar?: string; de?: string; subAr?: string; subDe?: string; hidden?: boolean; hajToolsEnabled?: boolean; hotels?: RoomCalcHotel[] } };
+export type CmsConfig = { order?: string[]; hiddenTiles?: string[]; parents?: Record<string, string>; sections?: CmsSection[]; hajToolsEnabled?: boolean; columns?: 2 | 3; theme?: string; banner?: BannerConfig; roomCalc?: { ar?: string; de?: string; subAr?: string; subDe?: string; hidden?: boolean; hajToolsEnabled?: boolean; labels?: Record<string, { ar?: string; de?: string }>; hotels?: RoomCalcHotel[] } };
 export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
 
 export const defaultContacts: ContactEntry[] = [
