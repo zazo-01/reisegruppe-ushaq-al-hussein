@@ -1083,7 +1083,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const adminS = useAdminSession();
   const showHidden = useShowHidden();
   const isEditing = useSectionEditMode();
-  const canManage = (adminS?.role === "admin" && adminS.mode === "admin") || (adminS?.role === "haj" && !!content?.cms?.hajToolsEnabled);
+  const canManage = (adminS?.role === "admin" && adminS.mode === "admin") || (adminS?.role === "haj" && !!content?.cms?.roomCalc?.hajToolsEnabled);
   const list = useServerFn(listBookings);
   const { lang } = useLang();
   const bi = biFor(lang);
@@ -1093,6 +1093,10 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const saveContent = useSaveContent(adminS?.password ?? "");
   const savedRc = content?.cms?.roomCalc;
   const isCardHidden = !!savedRc?.hidden;
+  const [hajToolsEnabled, setHajToolsEnabled] = useState(!!savedRc?.hajToolsEnabled);
+  useEffect(() => {
+    setHajToolsEnabled(!!savedRc?.hajToolsEnabled);
+  }, [savedRc?.hajToolsEnabled]);
   const [editTitleOpen, setEditTitleOpen] = useState(false);
   const savedTitle = {
     ar: savedRc?.ar || "محاسبة الفنادق الفعلية للحاج",
@@ -1333,7 +1337,13 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                   className="mt-1 w-full rounded border border-border p-2"
                 />
               </label>
-              <Button onClick={async () => { const ok = await persistRc({ ...draftTitle }); if (ok) setEditTitleOpen(false); }} className="w-full mt-2">
+              {adminS?.role === "admin" && adminS.mode === "admin" && (
+                <label className="flex items-start gap-2 rounded-lg border border-secondary/40 bg-secondary/10 p-3 font-bold">
+                  <input type="checkbox" checked={hajToolsEnabled} onChange={(e) => setHajToolsEnabled(e.target.checked)} className="mt-0.5 h-4 w-4 accent-secondary" />
+                  <span>{bi("السماح للحاج بإدارة الفنادق والحفظ في هذا القسم | Hajj darf Hotels in diesem Bereich verwalten und speichern")}</span>
+                </label>
+              )}
+              <Button onClick={async () => { const ok = await persistRc({ ...draftTitle, hajToolsEnabled }); if (ok) setEditTitleOpen(false); }} className="w-full mt-2">
                 {bi("حفظ التعديل | Speichern")}
               </Button>
             </div>
