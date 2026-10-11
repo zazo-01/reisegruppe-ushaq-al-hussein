@@ -1339,13 +1339,9 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               className={inputCls + " mt-1"}
             >
               <option value="all">{bi("كل الرحلات | Alle Reisen")}</option>
-              {trips.map((t) => {
-                const announced = announcedTrips.find((a) => a.key === t);
-                const label = announced
-                  ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}`
-                  : tripLabel(t, bi);
-                return <option key={announced?.id ?? t} value={t}>{label}</option>;
-              })}
+              {trips.map((t) => (
+                <option key={t} value={t}>{tripLabel(t, bi)}</option>
+              ))}
             </select>
           </label>
 
