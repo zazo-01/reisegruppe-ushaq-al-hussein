@@ -1308,7 +1308,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                   className="mt-1 w-full rounded border border-border p-2"
                 />
               </label>
-              <Button onClick={async () => { await persistRc({ ...draftTitle }); setEditTitleOpen(false); }} className="w-full mt-2">
+              <Button onClick={async () => { const ok = await persistRc({ ...draftTitle }); if (ok) setEditTitleOpen(false); }} className="w-full mt-2">
                 {bi("حفظ التعديل | Speichern")}
               </Button>
             </div>
@@ -1325,17 +1325,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               <span className="text-xs font-bold text-primary flex items-center gap-1.5">
                 <span>⚙️</span> {bi("لوحة إدارة الغرف والفنادق | Verwaltung")}
               </span>
-              {/* زر تفعيل وضع التعديل العام ✏️ */}
-              <button
-                type="button"
-                onClick={() => toggleSectionEditMode()}
-                className={`rounded px-2 py-0.5 text-[11px] font-bold border transition-colors ${
-                  isEditing ? "bg-secondary text-secondary-foreground border-secondary" : "bg-card text-muted-foreground border-border"
-                }`}
-                title={bi("تشغيل/إيقاف أقلام التعديل | Bearbeitungsmodus")}
-              >
-                ✏️ {isEditing ? bi("التعديل مفعّل | Aktiv") : bi("وضع التعديل | Bearbeiten")}
-              </button>
+              <span className="text-[11px] text-muted-foreground">{isEditing ? bi("وضع التعديل مفعّل | Bearbeitung aktiv") : bi("وضع العرض | Ansichtsmodus")}</span>
             </div>}
 
             <div className="flex items-center gap-1.5">
