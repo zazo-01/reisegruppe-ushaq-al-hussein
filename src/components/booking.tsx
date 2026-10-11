@@ -1105,7 +1105,22 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     subDe: savedRc?.subDe || "Zimmer verteilen, Gäste filtern und Kapazität berechnen",
   };
   const [draftTitle, setCustomTitle] = useState(savedTitle);
+  const [draftLabels, setDraftLabels] = useState<Record<string, { ar?: string; de?: string }>>(savedRc?.labels ?? {});
   const customTitle = editTitleOpen ? draftTitle : savedTitle;
+  const hotelFieldLabels = [
+    { key: "city", ar: "المدينة", de: "Stadt" },
+    { key: "hotel", ar: "اسم الفندق", de: "Hotelname" },
+    { key: "d", ar: "غرف ثنائية ×2", de: "Doppelzimmer ×2" },
+    { key: "t", ar: "غرف ثلاثية ×3", de: "Dreibettzimmer ×3" },
+    { key: "q", ar: "غرف رباعية ×4", de: "Vierbettzimmer ×4" },
+    { key: "s", ar: "غرف مفردة ×1", de: "Einzelzimmer ×1" },
+    { key: "totalRooms", ar: "مجموع الغرف", de: "Zimmer gesamt" },
+    { key: "capacity", ar: "السعة الإجمالية", de: "Gesamtkapazität" },
+  ];
+  const hotelLabel = (key: string, ar: string, de: string) => {
+    const saved = savedRc?.labels?.[key];
+    return bi(`${saved?.ar || ar} | ${saved?.de || de}`);
+  };
   const persistRc = async (patch: NonNullable<NonNullable<SiteContent["cms"]>["roomCalc"]>) => {
     if (!content || !adminS) {
       window.alert(bi("لا توجد صلاحية للحفظ | Keine Speicherberechtigung"));
@@ -1271,7 +1286,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           </button>
 
           <GearMenu>
-            {adminS?.role === "admin" && adminS.mode === "admin" && <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
+            {adminS?.role === "admin" && adminS.mode === "admin" && <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setDraftLabels(savedRc?.labels ?? {}); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
             <IconBtn label={hotelEditMode ? bi("إيقاف التعديل | Bearbeiten beenden") : bi("تفعيل تعديل الفنادق | Hotelbearbeitung aktivieren")} onClick={() => setHotelEditMode((v) => !v)}><Settings className="h-3.5 w-3.5" /></IconBtn>
             {adminS?.role === "admin" && adminS.mode === "admin" && <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
           </GearMenu>
@@ -1324,13 +1339,23 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                   className="mt-1 w-full rounded border border-border p-2"
                 />
               </label>
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                <p className="font-bold text-primary">{bi("تسمية خانات الفنادق والغرف | Feldnamen für Hotels und Zimmer")}</p>
+                {hotelFieldLabels.map((field) => (
+                  <div key={field.key} className="grid grid-cols-1 gap-1.5 rounded-md bg-muted/30 p-2">
+                    <span className="font-bold">{field.ar} | {field.de}</span>
+                    <input value={draftLabels[field.key]?.ar ?? field.ar} onChange={(e) => setDraftLabels((all) => ({ ...all, [field.key]: { ...all[field.key], ar: e.target.value } }))} placeholder="الاسم بالعربية" className="w-full rounded border border-input bg-background p-2" />
+                    <input dir="ltr" value={draftLabels[field.key]?.de ?? field.de} onChange={(e) => setDraftLabels((all) => ({ ...all, [field.key]: { ...all[field.key], de: e.target.value } }))} placeholder="Name auf Deutsch" className="w-full rounded border border-input bg-background p-2" />
+                  </div>
+                ))}
+              </div>
               {adminS?.role === "admin" && adminS.mode === "admin" && (
                 <label className="flex items-start gap-2 rounded-lg border border-secondary/40 bg-secondary/10 p-3 font-bold">
                   <input type="checkbox" checked={hajToolsEnabled} onChange={(e) => setHajToolsEnabled(e.target.checked)} className="mt-0.5 h-4 w-4 accent-secondary" />
                   <span>{bi("السماح للحاج بإدارة الفنادق والحفظ في هذا القسم | Hajj darf Hotels in diesem Bereich verwalten und speichern")}</span>
                 </label>
               )}
-              <Button onClick={async () => { const ok = await persistRc({ ...draftTitle, hajToolsEnabled }); if (ok) setEditTitleOpen(false); }} className="w-full mt-2">
+              <Button onClick={async () => { const ok = await persistRc({ ...draftTitle, hajToolsEnabled, labels: draftLabels }); if (ok) setEditTitleOpen(false); }} className="w-full mt-2">
                 {bi("حفظ التعديل | Speichern")}
               </Button>
             </div>
@@ -1388,8 +1413,8 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           {/* سجل الفنادق المنظم حسب الرحلة */}
           <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
             <div>
-              <h4 className="font-bold text-primary">{bi("محاسبة الفنادق الفعلية للحاج | Hotelabrechnung für Hajj Yasser")}</h4>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{bi("اختَر رحلة محددة من القائمة أعلاه، ثم أضف الفنادق وأدخل أعداد الغرف واحفظ البيانات. | Wähle oben eine bestimmte Reise, trage Hotels und Zimmerzahlen ein und speichere.")}</p>
+              <h4 className="font-bold text-primary"><LangText ar={customTitle.ar} de={customTitle.de} /></h4>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground"><LangText ar={customTitle.subAr} de={customTitle.subDe} /></p>
             </div>
             {trip === "all" && <p className="rounded-lg border border-secondary/40 bg-secondary/10 p-2 text-[11px]">{bi("لعرض فنادق رحلة معينة أو إضافة فندق، اختَر رحلة من القائمة أعلاه. | Bitte oben eine bestimmte Reise auswählen.")}</p>}
             {canManage && <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2">
@@ -1414,10 +1439,10 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-secondary/15 font-bold text-primary">{i + 1}</span>
                     <div className="min-w-0 flex-1 space-y-2">
                       {trip === "all" && <p className="text-[10px] font-bold text-secondary">{tripLabel(h.tripKey, bi)}</p>}
-                      <label className="block text-[11px] font-bold text-muted-foreground">{bi("المدينة | Stadt")}
+                      <label className="block text-[11px] font-bold text-muted-foreground">{hotelLabel("city", "المدينة", "Stadt")}
                         <input value={h.city} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { city: e.target.value })} placeholder={bi("مثلاً كربلاء، النجف، مكة... | z. B. Kerbela, Nadschaf, Mekka")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
                       </label>
-                      <label className="block text-[11px] font-bold text-muted-foreground">{bi("اسم الفندق | Hotelname")}
+                      <label className="block text-[11px] font-bold text-muted-foreground">{hotelLabel("hotel", "اسم الفندق", "Hotelname")}
                         <input value={h.name} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { name: e.target.value })} placeholder={bi("اكتب اسم الفندق هنا | Hotelnamen eingeben")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
                       </label>
                     </div>
@@ -1429,15 +1454,15 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {([{key:"d",ar:"ثنائية ×2",de:"Doppel ×2",factor:2},{key:"t",ar:"ثلاثية ×3",de:"Dreibett ×3",factor:3},{key:"q",ar:"رباعية ×4",de:"Vierbett ×4",factor:4},{key:"s",ar:"مفردة ×1",de:"Einzel ×1",factor:1}] as const).map((room) => (
                       <label key={room.key} className="rounded-lg border border-border bg-muted/30 p-2 text-center">
-                        <span className="block text-[11px] font-bold">{bi(room.ar + " | " + room.de)}</span>
+                        <span className="block text-[11px] font-bold">{hotelLabel(room.key, room.ar, room.de)}</span>
                         <span className="mt-0.5 block text-[10px] text-muted-foreground">{bi(room.factor + " زائر/الغرفة | " + room.factor + " Personen/Zimmer")}</span>
                         <input type="number" min="0" step="1" value={h[room.key] || ""} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { [room.key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} placeholder="0" className="mt-1 w-full rounded-md border border-input bg-background py-2 text-center text-base font-bold text-primary disabled:opacity-75" />
                       </label>
                     ))}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg bg-primary/5 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{bi("مجموع الغرف | Zimmer gesamt")}</span><strong className="text-lg text-primary">{totalRms}</strong></div>
-                    <div className="rounded-lg bg-secondary/15 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{bi("السعة الإجمالية | Gesamtkapazität")}</span><strong className="text-lg text-primary">{cap}</strong><span className="ms-1 text-[10px]">{bi("زائر | Personen")}</span></div>
+                    <div className="rounded-lg bg-primary/5 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{hotelLabel("totalRooms", "مجموع الغرف", "Zimmer gesamt")}</span><strong className="text-lg text-primary">{totalRms}</strong></div>
+                    <div className="rounded-lg bg-secondary/15 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{hotelLabel("capacity", "السعة الإجمالية", "Gesamtkapazität")}</span><strong className="text-lg text-primary">{cap}</strong><span className="ms-1 text-[10px]">{bi("زائر | Personen")}</span></div>
                   </div>
                 </div>
               );
